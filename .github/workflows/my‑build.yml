@@ -17,7 +17,7 @@ jobs:
           docker run --rm \
             -v "$PWD":/src -w /src \
             alpine:latest \
-            sh -c '
+            sh -c 
               apk update
               apk add --no-cache bash git gzip openssl bc cpio xz unzip grub-pc-bin mtools dosfstools make gcc jq
               ls -la my.sh user_config.json
@@ -36,7 +36,7 @@ jobs:
               CPU_BMI2_SUPPORT: $(jq -r .cpu_bmi2_support ../user_config.json)
               BUILD_TIME: $(date -Iseconds)
               EOF
-            '
+            
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
