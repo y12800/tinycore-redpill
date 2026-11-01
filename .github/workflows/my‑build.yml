@@ -1,0 +1,58 @@
+name: My‑Build Direct‑Boot Loader
+on:
+  workflow_dispatch:
+
+jobs:
+  build_loader:
+    runs-on: ubuntu‑22.04
+    # 使用官方原生alpine容器，替代第三方docker‑action，避免挂载/工作目录bug
+    container:
+      image: alpine:latest
+    steps:
+      - name: Checkout source (alpine‑redpill branch)
+        uses: actions/checkout@v4
+        with:
+          ref: alpine‑redpill
+          fetch‑depth: 1
+
+      - name: Install build dependencies inside alpine
+        run: |
+          apk update
+          apk add --no-cache bash git gzip openssl bc cpio xz unzip grub‑pc‑bin mtools dosfstools make gcc
+
+      - name: Verify config file
+        run: |
+          ls -la my.sh user_config.json
+          test -f user_config.json || { echo "ERROR: missing user_config.json"; exit 1; }
+
+      - name: Run m‑shell build
+        run: |
+          chmod +x my.sh
+          ./my.sh clean
+          ./my.sh update now
+          # my.sh 自动读取当前目录 user_config.json
+          ./my.sh build
+
+      - name: Generate Direct‑Boot pure‑img (no Alpine sub‑system)
+        run: |
+          chmod +x direct‑dsm‑kexec.sh
+          ./direct‑dsm‑kexec.sh
+
+      - name: Write build info
+        run: |
+          cd images
+          cat > build‑info.txt <<EOF
+          MODEL: $(jq -r .model ../user_config.json)
+          DSM_VERSION: $(jq -r .dsm_version ../user_config.json)
+          LOADER_MODE: $(jq -r .loader_mode ../user_config.json)
+          CPU_BMI2_SUPPORT: $(jq -r .cpu_bmi2_support ../user_config.json)
+          BUILD_TIME: $(date -Iseconds)
+          EOF
+
+      - name: Upload artifacts
+        uses: actions/upload‑artifact@v4
+        with:
+          name: Loader‑Build‑${{ github.sha }}
+          path: |
+            images/*
+          retention‑days: 7
